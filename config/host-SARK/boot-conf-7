@@ -1,0 +1,15 @@
+BOOT_TYPE=LINUX
+BOOT_LOADER=GRUB
+BOOT_TITLE="Linux old-kernel non-SMP USB"
+#
+# Boot from USB partition 2: (hd0,1) at this point
+#   because of BIOS device renumbering during USB boot
+#
+NUM_BOOT_LINES=1
+BOOT_LINE_1="   root (hd0,1)"
+KERNEL_OPTIONS="ro root=/dev/hda5 rhgb quiet"
+KERNEL_SMP=0
+KERNEL_INITRD_DIR="imgdir-SARK-nonsmp-old"
+KEY_DIR="host-SARK/keys-1"
+INITSCRIPT="host-SARK/init"
+INITCONF="host-SARK/init.conf"

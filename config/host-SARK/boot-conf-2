@@ -1,0 +1,10 @@
+BOOT_TYPE=FOREIGN
+BOOT_LOADER=GRUB
+BOOT_TITLE="OpenBSD USB"
+#
+# Boot from hda partition 2 (hd1,1) at this point
+#   because of BIOS device renumbering during USB boot
+#
+NUM_BOOT_LINES=2
+BOOT_LINE_1="   rootnoverify (hd1,1)"
+BOOT_LINE_2="   chainloader +1"

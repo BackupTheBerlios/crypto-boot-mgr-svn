@@ -1,0 +1,14 @@
+BOOT_TYPE=FOREIGN
+BOOT_LOADER=GRUB
+BOOT_TITLE="Windows USB boot"
+#
+# Switch BIOS device numbers,
+# then boot from hda partition 1 (hd1,0).
+# The Windows boot program will see this as hd0,0
+# because of the map statements.
+#
+NUM_BOOT_LINES=4
+BOOT_LINE_1="   map (hd0) (hd1)"
+BOOT_LINE_2="   map (hd1) (hd0)"
+BOOT_LINE_3="   rootnoverify (hd1,0)"
+BOOT_LINE_4="   chainloader +1"

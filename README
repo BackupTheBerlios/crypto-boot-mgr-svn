@@ -1,0 +1,24 @@
+Project name: crypto-boot-mgr
+Date        : May 31st, 2005
+Author      : Marc Chatel <chatelm@yahoo.com>
+
+This is a set of scripts that are currently specific
+to Fedora Core 3 Linux.
+
+The scripts attempt to make it easier to set up a system
+that has all its hard drive file systems encrypted, and
+that must be booted using a USB memory stick that contains
+special boot code and the file systems encryption keys.
+
+License
+=======
+
+crypto-boot-mgr is licensed under the terms of the
+GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your
+option) any later version (http://www.gnu.org/licenses/gpl.txt).
+
+Additional documentation
+========================
+
+To be added later.

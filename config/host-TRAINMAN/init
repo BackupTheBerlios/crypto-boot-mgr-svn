@@ -1,0 +1,130 @@
+#!/bin/bash
+
+echo "Shellscript called with parameters: \"$*\""
+
+mount -t proc /proc /proc
+echo Mounted /proc filesystem
+
+echo Mounting sysfs
+mount -t sysfs none /sys
+
+echo Creating /dev
+mount -o mode=0755 -t tmpfs none /dev
+mknod /dev/console c 5 1
+mknod /dev/null c 1 3
+mknod /dev/zero c 1 5
+mkdir /dev/pts
+mkdir /dev/shm
+
+echo Starting udev
+udevstart
+echo -n "/sbin/hotplug" > /proc/sys/kernel/hotplug
+
+echo Loading modules
+insmod /lib/scsi_mod.ko 
+insmod /lib/sd_mod.ko 
+insmod /lib/libata.ko 
+insmod /lib/ata_piix.ko 
+insmod /lib/jbd.ko 
+insmod /lib/ext3.ko 
+insmod /lib/dm-mod.ko
+insmod /lib/dm-crypt.ko
+insmod /lib/aes-i586.ko
+insmod /lib/ohci-hcd.ko
+insmod /lib/uhci-hcd.ko
+insmod /lib/usb-storage.ko
+
+echo Waiting 3 seconds to detect USB devices
+sleep 3
+
+echo Running initial udev
+udevstart
+
+echo Creating device mapper special device
+echo "mkdmnod" | nash --quiet
+
+echo Unmounting tmpfs /sys
+umount /sys
+
+if [ "$1" = "rescue" ]
+then
+   echo "Rescue mode, starting shell, 'exit' to continue boot."
+   bash
+fi
+
+echo Creating encrypted swap device
+cryptsetup --cipher=aes --key-size=256 --key-file=/dev/urandom create swap0_crypt /dev/hda6
+mkswap /dev/mapper/swap0_crypt
+
+### Mount normal root file system version, now commented out
+###
+### echo "mkrootdev /dev/root" | /bin/nash --quiet
+### mount -o defaults --ro -t ext3 /dev/root /sysroot
+
+# Mount USB file system, copy key files to /etc, then unmount
+echo Mounting USB file system
+mount -o ro /dev/sda1 /usb
+
+echo Copying encrypted keys from file system to ramdisk
+cp /usb/boot/sark/fs*.crypt /etc
+
+echo Unmounting USB file system
+umount /usb
+
+PASS_OK=0
+while [ $PASS_OK -eq 0 ]
+do
+   read -s -p "Please enter passphrase for encrypted filesystems: " MY_PASS
+   echo $MY_PASS > /etc/my-pass
+
+   openssl enc -d -des3 -salt -pass file:/etc/my-pass -in /etc/fs-root-hda5.crypt -out /etc/fs-root-hda5.clear > /dev/null 2>&1
+   OPENSSL_RC=$?
+
+   if [ $OPENSSL_RC -eq 0 ]
+   then
+      echo ""
+      echo "The passphrase is OK."
+      PASS_OK=1
+   else
+      echo ""
+      echo "The passphrase is incorrect, try again."
+      shred /etc/my-pass /etc/fs-root-hda5.clear
+      rm -f /etc/my-pass /etc/fs-root-hda5.clear
+   fi
+done
+
+# Step 1: decrypt keys of remaining filesystems (if any),
+#         then make passphrase data disappear.
+#
+echo "Calculating cleartext keys for all filesystems"
+openssl enc -d -des3 -salt -pass file:/etc/my-pass -in /etc/fs-boot-hda3.crypt -out /etc/fs-boot-hda3.clear > /dev/null 2>&1
+openssl enc -d -des3 -salt -pass file:/etc/my-pass -in /etc/fs-fs2-hda7.crypt -out /etc/fs-fs2-hda7.clear > /dev/null 2>&1
+shred /etc/my-pass
+rm -f /etc/my-pass
+
+#
+# Step 2: define device mapper "decrypted" devices
+#         then make cleartext key data disappear.
+#
+echo "Defining device mapper encryption devices"
+cryptsetup --cipher=aes --key-size=256 --key-file=/etc/fs-root-hda5.clear create hda5_crypt /dev/hda5
+cryptsetup --cipher=aes --key-size=256 --key-file=/etc/fs-boot-hda3.clear create hda3_crypt /dev/hda3
+cryptsetup --cipher=aes --key-size=256 --key-file=/etc/fs-fs2-hda7.clear create hda7_crypt /dev/hda7
+
+echo "Erasing traces of cleartext key material"
+shred /etc/fs-*.clear
+rm -f /etc/fs-*.clear
+
+#
+# Step 3: mount encrypted root filesystem
+#
+echo "Mounting encrypted root filesystem"
+mount -o defaults --ro -t ext3 /dev/mapper/hda5_crypt /sysroot
+
+echo "Making RAMdisk device resources briefly visible for root filesystem switchover..."
+mount -t tmpfs --bind /dev /sysroot/dev
+
+echo "Switching over in 3 seconds to the normal init process..."
+sleep 3
+exec /bin/nash /init.final
+
