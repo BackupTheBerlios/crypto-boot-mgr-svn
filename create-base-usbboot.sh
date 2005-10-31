@@ -318,12 +318,12 @@ do
    rm -f $TMPFILE1
 
    case $PART_TYPE in
-      fat16) mkfs -t vfat $ACTUAL_WORK_DEV$PART_IDX
+      fat16) mkfs -t vfat -c $ACTUAL_WORK_DEV$PART_IDX
              ;;
-      ext2)  mkfs -t ext2 $ACTUAL_WORK_DEV$PART_IDX > /dev/null 2>&1
+      ext2)  mkfs -t ext2 -c $ACTUAL_WORK_DEV$PART_IDX > /dev/null 2>&1
              tune2fs -m 0 -i 0 $ACTUAL_WORK_DEV$PART_IDX
              ;;
-      ext3)  mkfs -t ext3 $ACTUAL_WORK_DEV$PART_IDX > /dev/null 2>&1
+      ext3)  mkfs -t ext3 -c $ACTUAL_WORK_DEV$PART_IDX > /dev/null 2>&1
              tune2fs -m 0 -i 0 $ACTUAL_WORK_DEV$PART_IDX
              ;;
       esac
