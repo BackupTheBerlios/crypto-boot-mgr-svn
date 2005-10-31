@@ -21,6 +21,41 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 select_usb_dev()
+#---------------
+# Select a USB device, check for its presence, obtain its basic info.
+#
+# This function takes two parameters:
+#      Parameter 1)  a default device name for USB work,
+#      Parameter 2)  and an optional specifier: "quiet"
+#
+# a) The function prompts the user for a pseudo-device name
+#    at which to look for a USB memory stick. The function
+#    will repeat this prompt until the device name passes
+#    ALL following checks. If the user answers the prompt
+#    with an empty string (the user just presses ENTER),
+#    parameter 1 (default device name) is used as the device
+#    name to check
+#
+# b) The device name is checked for syntax. It must start with
+#    "/dev/sd", be longer than 7 characters, and not end with a digit.
+#
+# c) If the device name has an acceptable syntax, we check for its
+#    presence by attempting "fdisk -lu <device_name>". We capture
+#    the output of "fdisk -lu", looking for the size of the disk in
+#    bytes and cylinders. If successful, we use this to store values
+#    in DEVICE_SIZE_MB and DEVICE_SIZE_CYLS.
+#    The two values must be > 0 for the device to be acceptable.
+#
+# d) We then check to see if one or more partitions of this device
+#    are mounted, by inspecting /proc/mounts and the output of "df".
+#    If there are any indications that this device is mounted,
+#    we output an error device and prompt for a device name again.
+#
+# e) If all these checks pass, we return from here with
+#    DEV_DONE=1, ACTUAL_WORK_DEV=our_device_name,
+#    DEVICE_SIZE_MB=device_size_in_megabytes, and
+#    DEVICE_SIZE_CYLS=device_size_in_cylinders
+#
 {
    SEL_TMPFILE1=/tmp/sel_usbboot.tmp1.$$
    SEL_TMPFILE2=/tmp/sel_usbboot.tmp2.$$
@@ -89,7 +124,7 @@ select_usb_dev()
       then
          echo "Verifying device $ACTUAL_WORK_DEV..."
       fi
-      fdisk -l $ACTUAL_WORK_DEV > $SEL_TMPFILE1 2>&1
+      fdisk -lu $ACTUAL_WORK_DEV > $SEL_TMPFILE1 2>&1
 
       NUM_LINES=`wc -l < $SEL_TMPFILE1`
 
@@ -99,11 +134,13 @@ select_usb_dev()
          rm -f $SEL_TMPFILE1
          continue
       else
-         DEVICE_SIZE_MB=`grep "^Disk $ACTUAL_WORK_DEV: " < $SEL_TMPFILE1 | \
-                               sed -e 's,^Disk /dev/[a-z]*: ,,' \
-                                   -e 's/ MB.*//'`
+         DEVICE_SIZE_BYTES=`grep "^Disk $ACTUAL_WORK_DEV: " < $SEL_TMPFILE1 | \
+                             sed -e 's/^Disk .*, //' \
+                                 -e 's/ bytes.*//'`
+         DEVICE_SIZE_KB=`expr $DEVICE_SIZE_BYTES / 1024`
+         DEVICE_SIZE_MB=`expr $DEVICE_SIZE_KB / 1024`
          DEVICE_SIZE_CYLS=`grep '[0-9]* heads, [0-9]* sectors/track, [0-9]* cylinders' \
-            < $SEL_TMPFILE1 | sed -e 's/.*track, //' -e 's/ cylinders//'`
+            < $SEL_TMPFILE1 | sed -e 's/.*track, //' -e 's/ cylinders.*//'`
 
          if [ $DEVICE_SIZE_MB -gt 0 -a $DEVICE_SIZE_CYLS -gt 0 ]
          then
