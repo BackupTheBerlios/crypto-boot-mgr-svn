@@ -82,10 +82,10 @@ then
    echo -n "*** Cannot mount partition $MOUNT_DEV, or cannot "
    echo    "find GRUB config"
 else
-   list_actual_usb_configs $GRUB_CONF
+   list_actual_boot_configs $GRUB_CONF
 
    ###### Code that checks and shows all the variables
-   ###### obtained by list_actual_usb_configs
+   ###### obtained by list_actual_boot_configs
    ###
    ### DONE=0
    ### CONFIG_NUM=1

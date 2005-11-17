@@ -20,6 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+
 select_usb_dev()
 #---------------
 # Select a USB device, check for its presence, obtain its basic info.
@@ -204,13 +205,41 @@ select_usb_dev()
    done
 }  # select_usb_dev()
 
-# ACTUAL_WORK_DEV=/dev/sda
-#
-# select_usb_dev $ACTUAL_WORK_DEV
-# echo "DEVICE_SIZE_MB=$DEVICE_SIZE_MB"
-# echo "DEVICE_SIZE_CYLS=$DEVICE_SIZE_CYLS"
 
 list_configured_boot_configs()
+#-----------------------------
+# List the configured boot configurations present in
+#   the subdirectories of $CONFIG_DIR
+#
+# Takes no parameters
+#
+# a) Assumes that under directory $CONFIG_DIR,
+#    there are 0 or more directories with names starting with "host-",
+#    and that under each of those directories, there are 0 or more
+#    files with names starting with "boot-conf-".
+#
+# b) Traverses all these files in $CONFIG_DIR with pathnames
+#    of the form "host-*/boot-conf-*". Each of those files is
+#    assumed to be a sequence of lines of the form
+#    VAR_NAME=VAR_VALUE, with optional "#" comment specifiers.
+#    In other words, the boot-conf- files must be readable
+#    as source from a Bourne shell interpreter.
+#    So the function actually sources each of these files in turn.
+#    The only variable actually processed from each file will
+#    be BOOT_TITLE, which is expected to be present in every
+#    boot-conf- file.
+#
+# c) For each boot configuration file, one line is outputted,
+#    of the form:
+#
+#      'Boot config <2-digit number>: "host-<hostname> <boot_title>"'
+#
+#    in addition, the following shell variables are created and
+#    assigned:
+#
+#        CONFIGURED_BOOT_CONF_nnn="host-<hostname> <boot_title>"
+#        CONFIGURED_BOOTFILE_nnn="host-<hostname>/boot-conf-<name>"
+#
 {
    LIST_PREV_DIR=`pwd`
 
@@ -268,6 +297,13 @@ list_configured_boot_configs()
          fi
          cd ..
       done
+
+      # Make sure the next variables have been erased.
+      #
+      CONFIG_BOOT_VAR=CONFIGURED_BOOT_CONF_$CONFIG_NUM
+      CONFIG_BOOTFILE_VAR=CONFIGURED_BOOTFILE_$CONFIG_NUM
+      eval $CONFIG_BOOT_VAR=""
+      eval $CONFIG_BOOTFILE_VAR=""
    fi
 
    echo "----------------------------------------------------"
@@ -275,14 +311,29 @@ list_configured_boot_configs()
    cd $LIST_PREV_DIR
 }
 
-list_actual_usb_configs()
+
+list_actual_boot_configs()
+#-------------------------
+# List the boot configurations present on a boot device.
+#
+# Takes one parameter, the path name of the GRUB boot config
+#   on the device (assumes the device has been mounted at some
+#   mount point by the caller prior to calling this function).
+#
+# a) Reads the GRUB config file, only looking for the lines
+#    that start with the string "title".
+#
+# b) For each "title" line, reads the rest of the line
+#    into a shell variable of the form ACTUAL_BOOT_CONF_nnn.
+#    Also outputs a line showing the title line.
+#
 {
    LIST_GRUB_CONF=$1
 
    echo "List of actual boot configurations on the USB boot disk:"
    echo "--------------------------------------------------------"
 
-   TMPGRUBFILE1=$TMP_DIR/usbgrubconf.tmp1.$$
+   TMPGRUBFILE1=$TMP_DIR/actualgrubconf.tmp1.$$
    CONFIG_NUM=1
 
    grep -i "^title" < $LIST_GRUB_CONF > $TMPGRUBFILE1
@@ -296,10 +347,15 @@ list_actual_usb_configs()
       # echo "ACTUAL_BOOT_VAR is $ACTUAL_BOOT_VAR"
       eval $ACTUAL_BOOT_VAR=\"$F2\"
       eval ACTUAL_BOOT_VAL=\$$ACTUAL_BOOT_VAR
-      # echo "Value of variable $ACTUAL_BOOT_VAR is \"$ACTUAL_BOOT_VAL\""
+      # echo "Value of var $ACTUAL_BOOT_VAR is \"$ACTUAL_BOOT_VAL\""
 
       CONFIG_NUM=`expr $CONFIG_NUM + 1`
    done < $TMPGRUBFILE1
+
+   # Make sure the next ACTUAL_BOOT_CONF is erased
+
+   ACTUAL_BOOT_VAR=ACTUAL_BOOT_CONF_$CONFIG_NUM
+   eval $ACTUAL_BOOT_VAR=""
 
    rm -f $TMPGRUBFILE1
    echo "--------------------------------------------------------"
@@ -310,6 +366,9 @@ list_actual_usb_configs()
 ### Empty DIR_BUILD_nnn are ignored.
 
 build_dir_tree()
+#----------------
+# Build a directory tree based on configured instructions.
+#
 {
    BUILD_DIR_ROOT=$1
    BUILD_DIR_RC=0
