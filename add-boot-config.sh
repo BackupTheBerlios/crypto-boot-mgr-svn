@@ -5,7 +5,7 @@
 #
 # Adds a boot menu entry to the USB memory stick.
 #
-# Copyright (C) 2005 by Marc Chatel, chatelm@yahoo.com
+# Copyright (C) 2005,2006 by Marc Chatel, chatelm@yahoo.com
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
